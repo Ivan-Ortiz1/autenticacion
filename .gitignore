@@ -1,0 +1,26 @@
+# Dependencias
+node_modules/
+
+# Archivos de logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Variables de entorno
+.env
+
+# Builds o compilados (si llegas a usarlos)
+dist/
+build/
+
+# Cobertura de tests
+coverage/
+
+# Cachés
+.cache/
