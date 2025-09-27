@@ -4,11 +4,12 @@ import { UserRepository } from './user-repository.js'
 
 const app = express()
 
+app.set('view engine', 'ejs')
 // Middleware para parsear JSON
 app.use(express.json())
 
 app.get('/', (req, res) => {
-  res.send('Hola mundo')
+  res.render('index', { username: 'Ivan' })
 })
 
 app.post('/login', async (req, res) => {
@@ -37,7 +38,7 @@ app.post('/logout', (req, res) => {
 })
 
 app.get('/protected', (req, res) => {
-  // Aquí iría tu lógica para rutas protegidas
+  res.render('protected', { username: 'Ivan'})
 })
 
 app.listen(PORT, () => {

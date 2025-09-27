@@ -42,7 +42,9 @@ export class UserRepository {
     const isValid = await bcrypt.compare(password, user.password)
     if (!isValid) throw new Error('Contraseña inválida')
 
-    return user
+    const { password: _, ...publicUser } = user
+
+    return publicUser
   }
 }
 
