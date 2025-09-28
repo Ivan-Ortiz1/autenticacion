@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Zona Protegida</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      color: #333;
+      text-align: center;
+      padding: 40px;
+    }
+    .container {
+      max-width: 500px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #444;
+    }
+    button {
+      padding: 10px 20px;
+      background: #e63946;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #d62828;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Zona Protegida</h1>
+    <p>Bienvenido, <%= user.username %> 👋</p>
+
+    <form id="logoutForm" method="POST" action="/logout">
+      <button type="submit">Cerrar sesión</button>
+    </form>
+  </div>
+
+  <script>
+    // Manejo de logout sin recargar la página
+    const logoutForm = document.getElementById('logoutForm')
+    logoutForm.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const res = await fetch('/logout', { method: 'POST' })
+      if (res.ok) {
+        window.location.href = '/' // Redirigir al inicio
+      } else {
+        alert('Error al cerrar sesión')
+      }
+    })
+  </script>
+</body>
+</html>
