@@ -10,7 +10,6 @@ import {
   csrfProtection,
   loginRateLimiter,
   authenticate,
-  authorize,
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken
@@ -43,7 +42,7 @@ app.use((req, res, next) => {
   if (!req.session.user && token) {
     try {
       const data = jwt.verify(token, SECRET_JWT_KEY)
-      req.session.user = { ...data } // nunca sobrescribas req.session
+      req.session.user = { ...data } // sincronizamos session con token
     } catch {
       req.session.user = null
     }
@@ -56,8 +55,12 @@ app.use('/admin', adminRoutes)
 
 // Ruta raíz
 app.get('/', csrfProtection, (req, res) => {
-  const username = req.session.user ? req.session.user.username : null
-  res.render('index', { username, csrfToken: req.csrfToken() })
+  const user = req.session.user || null
+  const username = user ? user.username : null
+  const role = user ? user.role : null
+
+  // Enviamos username, role y csrfToken para que la vista pueda renderizar condicionalmente
+  res.render('index', { username, role, csrfToken: req.csrfToken() })
 })
 
 // Login
@@ -66,7 +69,7 @@ app.post('/login', loginRateLimiter, csrfProtection, async (req, res) => {
   try {
     const user = await UserRepository.login({ username, password })
 
-    // Guardamos solo propiedades en la sesión
+    // Guardamos solo propiedades necesarias en la sesión
     req.session.user = { id: user._id, username: user.username, role: user.role }
 
     // Generamos tokens
@@ -104,9 +107,13 @@ app.post('/register', csrfProtection, async (req, res) => {
 })
 
 // Logout
-app.post('/logout', (req, res) => {
+// Agregado csrfProtection para que logout requiera token CSRF (el frontend ya lo envía)
+app.post('/logout', csrfProtection, (req, res) => {
   req.session.destroy(err => {
-    if (err) console.error(err)
+    if (err) {
+      console.error(err)
+      return res.status(500).send('Error al cerrar sesión')
+    }
     res.clearCookie('access_token')
     res.clearCookie('refresh_token')
     res.send({ message: 'Sesión cerrada' })
@@ -118,12 +125,12 @@ app.get('/protected', authenticate, csrfProtection, (req, res) => {
   const user = req.session.user
 
   if (!user) return res.redirect('/')
-    
   res.render('protected', { user, csrfToken: req.csrfToken() })
 })
 
 // Refresh token
-app.post('/refresh', (req, res) => {
+// Agregado csrfProtection para que el refresh requiera token CSRF (frontend lo envía)
+app.post('/refresh', csrfProtection, (req, res) => {
   const refreshToken = req.cookies.refresh_token
   if (!refreshToken) return res.status(401).send('No hay refresh token')
 

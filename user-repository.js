@@ -21,6 +21,10 @@ export class UserRepository {
     const user = User.findOne({ username })
     if (user) throw new Error('Usuario ya existente')
 
+    // Validar rol al crear usuario
+    const validRoles = ['user', 'admin']
+    if (!validRoles.includes(role)) throw new Error('Rol inválido')
+
     const id = crypto.randomUUID()
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
 
@@ -56,8 +60,13 @@ export class UserRepository {
 
   // Actualizar rol
   static async updateRole(id, role) {
+    // Validar rol permitido
+    const validRoles = ['user', 'admin']
+    if (!validRoles.includes(role)) throw new Error('Rol inválido')
+
     const user = User.findOne({ _id: id })
     if (!user) throw new Error('Usuario no encontrado')
+
     user.role = role
     user.save()
   }

@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tailwind:init": "npx tailwindcss init -p"
   },
   "keywords": [],
   "author": "",
@@ -26,7 +27,10 @@
     "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
-    "standard": "17.1.2"
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "standard": "17.1.2",
+    "tailwindcss": "^4.1.13"
   },
   "eslintConfig": {
     "extends": "standard"
