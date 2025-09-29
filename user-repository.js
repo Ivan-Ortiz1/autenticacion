@@ -9,11 +9,12 @@ const { Schema } = new DBLocal({ path: './db' })
 const User = Schema('User', {
   _id: { type: String, required: true },
   username: { type: String, required: true, unique: true },
-  password: { type: String, required: true }
+  password: { type: String, required: true },
+  role: { type: String, required: true, default: 'user' }
 })
 
 export class UserRepository {
-  static async create({ username, password }) {
+  static async create({ username, password, role = 'user' }) {
     Validation.username(username)
     Validation.password(password)
 
@@ -26,7 +27,8 @@ export class UserRepository {
     User.create({
       _id: id,
       username,
-      password: hashedPassword
+      password: hashedPassword,
+      role
     }).save()
 
     return id
@@ -45,6 +47,26 @@ export class UserRepository {
     const { password: _, ...publicUser } = user
 
     return publicUser
+  }
+
+  // Listar todos los usuarios
+  static listAll() {
+    return User.find({})
+  }
+
+  // Actualizar rol
+  static async updateRole(id, role) {
+    const user = User.findOne({ _id: id })
+    if (!user) throw new Error('Usuario no encontrado')
+    user.role = role
+    user.save()
+  }
+
+  // Eliminar usuario
+  static async delete(id) {
+    const user = User.findOne({ _id: id })
+    if (!user) throw new Error('Usuario no encontrado')
+    User.delete({ _id: id })
   }
 }
 

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Panel Admin - Usuarios</title>
+</head>
+<body>
+  <h1>Panel de Administración</h1>
+  <table border="1">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Usuario</th>
+        <th>Rol</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% users.forEach(u => { %>
+        <tr>
+          <td><%= u._id %></td>
+          <td><%= u.username %></td>
+          <td><%= u.role %></td>
+          <td>
+            <select onchange="changeRole('<%= u._id %>', this.value)">
+              <option value="user" <%= u.role === 'user' ? 'selected' : '' %>>Usuario</option>
+              <option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>Administrador</option>
+            </select>
+            <button onclick="deleteUser('<%= u._id %>')">Eliminar</button>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <button onclick="window.location.href='/'">Volver al inicio</button>
+
+  <script>
+    async function changeRole(id, role) {
+      const res = await fetch(`/admin/users/${id}/role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      })
+      if (!res.ok) alert('Error al actualizar rol')
+      else alert('Rol actualizado')
+    }
+
+    async function deleteUser(id) {
+      if (!confirm('¿Seguro que quieres eliminar este usuario?')) return
+      const res = await fetch(`/admin/users/${id}`, { method: 'DELETE' })
+      if (!res.ok) alert('Error al eliminar usuario')
+      else location.reload()
+    }
+  </script>
+</body>
+</html>

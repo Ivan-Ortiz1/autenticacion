@@ -3,10 +3,12 @@ import jwt from 'jsonwebtoken'
 import cookieParser from 'cookie-parser'
 import { PORT, SECRET_JWT_KEY } from './config.js'
 import { UserRepository } from './user-repository.js'
+import adminRoutes from './routes/admin.js'
 import {
   csrfProtection,
   loginRateLimiter,
   authenticate,
+  authorize,
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken
@@ -37,10 +39,15 @@ app.use((req, res, next) => {
   next()
 })
 
+app.use('/admin', adminRoutes)
+
 // Ruta raíz
-app.get('/', (req, res) => {
+app.get('/', csrfProtection, (req, res) => {
   const { user } = req.session
-  res.render('index', { username: user ? user.username : null })
+  res.render('index', { 
+    username: user ? user.username : null,
+    csrfToken: req.csrfToken() // <-- paso crucial para EJS
+  })
 })
 
 // Login
@@ -51,11 +58,13 @@ app.post('/login', loginRateLimiter, csrfProtection, async (req, res) => {
 
     const accessToken = generateAccessToken({
       id: user._id,
-      username: user.username
+      username: user.username,
+      role: user.role
     })
     const refreshToken = generateRefreshToken({
       id: user._id,
-      username: user.username
+      username: user.username,
+      role: user.role
     })
 
     res
@@ -89,6 +98,11 @@ app.post('/register', csrfProtection, async (req, res) => {
   }
 })
 
+// Solo administradores pueden acceder
+app.get('/admin', authenticate, authorize(['admin']), (req, res) => {
+  res.send('Bienvenido administrador')
+})
+
 // Logout
 app.post('/logout', (req, res) => {
   res.clearCookie('access_token')
@@ -97,9 +111,12 @@ app.post('/logout', (req, res) => {
 })
 
 // Ruta protegida
-app.get('/protected', authenticate, (req, res) => {
+app.get('/protected', authenticate, csrfProtection, (req, res) => {
   const { user } = req.session
-  res.render('protected', { user })
+  res.render('protected', { 
+    user,
+    csrfToken: req.csrfToken()
+  })
 })
 
 // Refresh token → renovar access token
@@ -113,7 +130,8 @@ app.post('/refresh', (req, res) => {
     const userData = verifyRefreshToken(refreshToken)
     const newAccessToken = generateAccessToken({
       id: userData.id,
-      username: userData.username
+      username: userData.username,
+      role: userData.role
     })
 
     res.cookie('access_token', newAccessToken, {

@@ -3,13 +3,15 @@ import rateLimit from 'express-rate-limit'
 import csrf from 'csurf'
 import { SECRET_JWT_KEY, REFRESH_SECRET, NODE_ENV } from './config.js'
 
+
 export const loginRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 15 * 60 * 1000, // 15 min
   max: 3,
   message: 'Demasiados intentos de login. Intenta más tarde.',
   standardHeaders: true,
   legacyHeaders: false
 })
+
 
 export const csrfProtection = csrf({
   cookie: {
@@ -19,6 +21,7 @@ export const csrfProtection = csrf({
   }
 })
 
+
 export function generateAccessToken(payload) {
   return jwt.sign(payload, SECRET_JWT_KEY, { expiresIn: '15m' })
 }
@@ -27,6 +30,7 @@ export function generateRefreshToken(payload) {
   return jwt.sign(payload, REFRESH_SECRET, { expiresIn: '7d' })
 }
 
+
 export function verifyAccessToken(token) {
   return jwt.verify(token, SECRET_JWT_KEY)
 }
@@ -34,6 +38,7 @@ export function verifyAccessToken(token) {
 export function verifyRefreshToken(token) {
   return jwt.verify(token, REFRESH_SECRET)
 }
+
 
 export function authenticate(req, res, next) {
   const token = req.cookies.access_token
@@ -49,4 +54,19 @@ export function authenticate(req, res, next) {
   }
 
   next()
+}
+
+
+export function authorize(allowedRoles = []) {
+  return (req, res, next) => {
+    const user = req.session.user
+    if (!user) return res.status(403).send('Acceso denegado')
+
+    const userRole = (user.role || '').toLowerCase()
+    const rolesLower = allowedRoles.map(r => r.toLowerCase())
+
+    if (!rolesLower.includes(userRole)) return res.status(403).send('Acceso denegado')
+
+    next()
+  }
 }

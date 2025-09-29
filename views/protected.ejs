@@ -7,27 +7,45 @@
 <body>
   <h1>Zona Protegida</h1>
   <p>Bienvenido, <%= user.username %> (ID: <%= user.id %>)</p>
+  <p>Rol: <%= user.role %></p>
 
   <button id="refreshBtn">Refrescar Token</button>
   <button id="logoutBtn">Cerrar sesión</button>
   <button onclick="window.location.href='/'">Volver al inicio</button>
 
   <script>
-    // REFRESH TOKEN
-    document.getElementById('refreshBtn').addEventListener('click', async () => {
-      const res = await fetch('/refresh', { method: 'POST' })
-      if (res.ok) {
-        alert('Token renovado correctamente')
+    const csrfToken = '<%= csrfToken %>'; // Token CSRF desde el servidor
+
+    // REFRESH TOKEN MANUAL
+    async function refreshToken() {
+      const res = await fetch('/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'CSRF-Token': csrfToken
+        }
+      });
+      if (!res.ok) {
+        alert('Sesión expirada, volviendo al login');
+        window.location.href = '/';
       } else {
-        alert('No se pudo renovar el token')
+        console.log('Token renovado automáticamente o manualmente');
       }
-    })
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', refreshToken);
 
     // LOGOUT
     document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await fetch('/logout', { method: 'POST' })
-      window.location.href = '/'
-    })
+      await fetch('/logout', {
+        method: 'POST',
+        headers: { 'CSRF-Token': csrfToken }
+      });
+      window.location.href = '/';
+    });
+
+    // AUTO-REFRESH CADA 14 MINUTOS
+    const tokenExpTimer = setInterval(refreshToken, 14 * 60 * 1000);
   </script>
 </body>
 </html>
