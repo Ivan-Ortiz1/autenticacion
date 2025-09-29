@@ -42,15 +42,19 @@ export function verifyRefreshToken(token) {
 
 export function authenticate(req, res, next) {
   const token = req.cookies.access_token
-  req.session = { user: null }
 
-  if (!token) return next()
+  if (!req.session) req.session = {} // aseguramos que req.session exista
+
+  if (!token) {
+    req.session.user = null // no autorizado, pero dejamos pasar
+    return next()
+  }
 
   try {
     const data = verifyAccessToken(token)
     req.session.user = data
   } catch (err) {
-    req.session.user = null
+    req.session.user = null // token inválido
   }
 
   next()

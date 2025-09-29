@@ -1,6 +1,6 @@
 import express from 'express'
 import { UserRepository } from '../user-repository.js'
-import { authenticate, authorize } from '../security.js'
+import { authenticate, authorize, csrfProtection } from '../security.js'
 
 const router = express.Router()
 
@@ -9,13 +9,13 @@ router.use(authenticate)
 router.use(authorize(['admin']))
 
 // Listar usuarios
-router.get('/users', async (req, res) => {
-  const users = UserRepository.listAll()
-  res.render('admin-users', { users })
+router.get('/users', csrfProtection, async (req, res) => {
+  const users = await UserRepository.listAll()
+  res.render('admin-users', { users, csrfToken: req.csrfToken() })
 })
 
 // Cambiar rol
-router.post('/users/:id/role', async (req, res) => {
+router.post('/users/:id/role', csrfProtection, async (req, res) => {
   const { id } = req.params
   const { role } = req.body
   try {
@@ -27,7 +27,7 @@ router.post('/users/:id/role', async (req, res) => {
 })
 
 // Eliminar usuario
-router.delete('/users/:id', async (req, res) => {
+router.delete('/users/:id', csrfProtection, async (req, res) => {
   const { id } = req.params
   try {
     await UserRepository.delete(id)

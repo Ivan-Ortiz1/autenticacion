@@ -1,6 +1,8 @@
 import express from 'express'
 import jwt from 'jsonwebtoken'
 import cookieParser from 'cookie-parser'
+import session from 'express-session'
+import SQLiteStore from 'connect-sqlite3'
 import { PORT, SECRET_JWT_KEY } from './config.js'
 import { UserRepository } from './user-repository.js'
 import adminRoutes from './routes/admin.js'
@@ -15,39 +17,47 @@ import {
 } from './security.js'
 
 const app = express()
-
 app.set('view engine', 'ejs')
 
 // Middlewares
 app.use(express.json())
 app.use(cookieParser())
 
-// Middleware para verificar access token y guardar sesión
+// Sesiones persistentes con SQLite
+app.use(session({
+  store: new (SQLiteStore(session))({ db: 'sessions.db', dir: './db' }),
+  secret: SECRET_JWT_KEY,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24, // 1 día
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict'
+  }
+}))
+
+// Middleware: sincroniza JWT con sesión persistente
 app.use((req, res, next) => {
   const token = req.cookies.access_token
-  req.session = { user: null }
-
-  try {
-    if (token) {
+  if (!req.session.user && token) {
+    try {
       const data = jwt.verify(token, SECRET_JWT_KEY)
-      req.session.user = data
+      req.session.user = { ...data } // nunca sobrescribas req.session
+    } catch {
+      req.session.user = null
     }
-  } catch (err) {
-    req.session.user = null
   }
-
   next()
 })
 
+// Rutas de admin
 app.use('/admin', adminRoutes)
 
 // Ruta raíz
 app.get('/', csrfProtection, (req, res) => {
-  const { user } = req.session
-  res.render('index', { 
-    username: user ? user.username : null,
-    csrfToken: req.csrfToken() // <-- paso crucial para EJS
-  })
+  const username = req.session.user ? req.session.user.username : null
+  res.render('index', { username, csrfToken: req.csrfToken() })
 })
 
 // Login
@@ -56,16 +66,12 @@ app.post('/login', loginRateLimiter, csrfProtection, async (req, res) => {
   try {
     const user = await UserRepository.login({ username, password })
 
-    const accessToken = generateAccessToken({
-      id: user._id,
-      username: user.username,
-      role: user.role
-    })
-    const refreshToken = generateRefreshToken({
-      id: user._id,
-      username: user.username,
-      role: user.role
-    })
+    // Guardamos solo propiedades en la sesión
+    req.session.user = { id: user._id, username: user.username, role: user.role }
+
+    // Generamos tokens
+    const accessToken = generateAccessToken(req.session.user)
+    const refreshToken = generateRefreshToken(req.session.user)
 
     res
       .cookie('access_token', accessToken, {
@@ -81,64 +87,55 @@ app.post('/login', loginRateLimiter, csrfProtection, async (req, res) => {
         maxAge: 1000 * 60 * 60 * 24 * 7 // 7 días
       })
       .send({ user })
-  } catch (error) {
-    res.status(401).send(error.message)
+  } catch (err) {
+    res.status(401).send(err.message)
   }
 })
 
 // Registro
 app.post('/register', csrfProtection, async (req, res) => {
   const { username, password } = req.body
-
   try {
     const id = await UserRepository.create({ username, password })
     res.send({ id })
-  } catch (error) {
-    res.status(400).send(error.message)
+  } catch (err) {
+    res.status(400).send(err.message)
   }
-})
-
-// Solo administradores pueden acceder
-app.get('/admin', authenticate, authorize(['admin']), (req, res) => {
-  res.send('Bienvenido administrador')
 })
 
 // Logout
 app.post('/logout', (req, res) => {
-  res.clearCookie('access_token')
-  res.clearCookie('refresh_token')
-  res.send({ message: 'Sesión cerrada' })
+  req.session.destroy(err => {
+    if (err) console.error(err)
+    res.clearCookie('access_token')
+    res.clearCookie('refresh_token')
+    res.send({ message: 'Sesión cerrada' })
+  })
 })
 
 // Ruta protegida
 app.get('/protected', authenticate, csrfProtection, (req, res) => {
-  const { user } = req.session
-  res.render('protected', { 
-    user,
-    csrfToken: req.csrfToken()
-  })
+  const user = req.session.user
+
+  if (!user) return res.redirect('/')
+    
+  res.render('protected', { user, csrfToken: req.csrfToken() })
 })
 
-// Refresh token → renovar access token
+// Refresh token
 app.post('/refresh', (req, res) => {
   const refreshToken = req.cookies.refresh_token
-  if (!refreshToken) {
-    return res.status(401).send('No hay refresh token')
-  }
+  if (!refreshToken) return res.status(401).send('No hay refresh token')
 
   try {
     const userData = verifyRefreshToken(refreshToken)
-    const newAccessToken = generateAccessToken({
-      id: userData.id,
-      username: userData.username,
-      role: userData.role
-    })
+    const newAccessToken = generateAccessToken(userData)
 
     res.cookie('access_token', newAccessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 1000 * 60 * 15 // 15 minutos
+      maxAge: 1000 * 60 * 15
     })
 
     res.send({ message: 'Token renovado' })

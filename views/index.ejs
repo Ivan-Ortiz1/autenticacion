@@ -5,7 +5,7 @@
   <title>Inicio - Passport Challenge</title>
 </head>
 <body>
-  <h1>Bienvenido <%= username ? username : "invitado" %></h1>
+  <h1>Bienvenido <%= username ? username.replace(/</g,'&lt;').replace(/>/g,'&gt;') : "invitado" %></h1>
 
   <% if (!username) { %>
     <h2>Iniciar sesión</h2>
@@ -22,71 +22,89 @@
       <button type="submit">Registrar</button>
     </form>
   <% } else { %>
-    <p>Ya has iniciado sesión como <b><%= username %></b></p>
+    <p>Ya has iniciado sesión como <b><%= username.replace(/</g,'&lt;').replace(/>/g,'&gt;') %></b></p>
     <button id="protectedBtn">Ir a zona protegida</button>
     <button id="logoutBtn">Cerrar sesión</button>
   <% } %>
 
   <script>
-    const csrfToken = '<%= csrfToken %>'; // Token CSRF desde el servidor
+    const csrfToken = '<%= csrfToken %>';
 
     // LOGIN
     document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const username = document.getElementById('loginUser').value
-      const password = document.getElementById('loginPass').value
+      e.preventDefault();
+      const username = document.getElementById('loginUser').value.trim();
+      const password = document.getElementById('loginPass').value;
 
-      const res = await fetch('/login', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'CSRF-Token': csrfToken
-        },
-        body: JSON.stringify({ username, password })
-      })
+      try {
+        const res = await fetch('/login', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ username, password })
+        });
 
-      if (res.ok) {
-        location.reload()
-      } else {
-        alert('Error en login')
+        if (res.ok) {
+          location.reload();
+        } else {
+          const err = await res.text();
+          alert(`Error en login: ${err}`);
+        }
+      } catch (err) {
+        alert('Error en la comunicación con el servidor');
+        console.error(err);
       }
-    })
+    });
 
     // REGISTRO
     document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const username = document.getElementById('regUser').value
-      const password = document.getElementById('regPass').value
+      e.preventDefault();
+      const username = document.getElementById('regUser').value.trim();
+      const password = document.getElementById('regPass').value;
 
-      const res = await fetch('/register', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'CSRF-Token': csrfToken
-        },
-        body: JSON.stringify({ username, password })
-      })
+      try {
+        const res = await fetch('/register', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'CSRF-Token': csrfToken
+          },
+          body: JSON.stringify({ username, password })
+        });
 
-      if (res.ok) {
-        alert('Usuario creado, ahora puedes iniciar sesión')
-      } else {
-        alert('Error en registro')
+        if (res.ok) {
+          alert('Usuario creado, ahora puedes iniciar sesión');
+        } else {
+          const err = await res.text();
+          alert(`Error en registro: ${err}`);
+        }
+      } catch (err) {
+        alert('Error en la comunicación con el servidor');
+        console.error(err);
       }
-    })
+    });
 
     // LOGOUT
     document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-      await fetch('/logout', { 
-        method: 'POST',
-        headers: { 'CSRF-Token': csrfToken }
-      })
-      location.reload()
-    })
+      try {
+        const res = await fetch('/logout', { 
+          method: 'POST',
+          headers: { 'CSRF-Token': csrfToken }
+        });
+        if (res.ok) location.reload();
+        else alert('Error al cerrar sesión');
+      } catch (err) {
+        alert('Error en la comunicación con el servidor');
+        console.error(err);
+      }
+    });
 
     // IR A ZONA PROTEGIDA
     document.getElementById('protectedBtn')?.addEventListener('click', () => {
-      window.location.href = '/protected'
-    })
+      window.location.href = '/protected';
+    });
   </script>
 </body>
 </html>

@@ -6,46 +6,56 @@
 </head>
 <body>
   <h1>Zona Protegida</h1>
-  <p>Bienvenido, <%= user.username %> (ID: <%= user.id %>)</p>
-  <p>Rol: <%= user.role %></p>
+  <p>Bienvenido, <%= user.username.replace(/</g,'&lt;').replace(/>/g,'&gt;') %> (ID: <%= user.id.replace(/</g,'&lt;').replace(/>/g,'&gt;') %>)</p>
+  <p>Rol: <%= user.role.replace(/</g,'&lt;').replace(/>/g,'&gt;') %></p>
 
   <button id="refreshBtn">Refrescar Token</button>
   <button id="logoutBtn">Cerrar sesión</button>
   <button onclick="window.location.href='/'">Volver al inicio</button>
 
   <script>
-    const csrfToken = '<%= csrfToken %>'; // Token CSRF desde el servidor
+    const csrfToken = '<%= csrfToken %>';
 
-    // REFRESH TOKEN MANUAL
     async function refreshToken() {
-      const res = await fetch('/refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'CSRF-Token': csrfToken
+      try {
+        const res = await fetch('/refresh', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'CSRF-Token': csrfToken
+          }
+        });
+        if (!res.ok) {
+          alert('Sesión expirada, volviendo al login');
+          window.location.href = '/';
+        } else {
+          console.log('Token renovado');
         }
-      });
-      if (!res.ok) {
-        alert('Sesión expirada, volviendo al login');
-        window.location.href = '/';
-      } else {
-        console.log('Token renovado automáticamente o manualmente');
+      } catch (err) {
+        console.error('Error al refrescar token:', err);
       }
     }
 
     document.getElementById('refreshBtn').addEventListener('click', refreshToken);
 
-    // LOGOUT
     document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await fetch('/logout', {
-        method: 'POST',
-        headers: { 'CSRF-Token': csrfToken }
-      });
-      window.location.href = '/';
+      try {
+        const res = await fetch('/logout', {
+          method: 'POST',
+          headers: { 'CSRF-Token': csrfToken }
+        });
+        if (!res.ok) {
+          alert('Error al cerrar sesión');
+        } else {
+          window.location.href = '/';
+        }
+      } catch (err) {
+        console.error('Error en logout:', err);
+      }
     });
 
-    // AUTO-REFRESH CADA 14 MINUTOS
-    const tokenExpTimer = setInterval(refreshToken, 14 * 60 * 1000);
+    // Auto-refresh cada 14 minutos
+    setInterval(refreshToken, 14 * 60 * 1000);
   </script>
 </body>
 </html>
