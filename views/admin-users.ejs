@@ -33,15 +33,15 @@
         <tbody>
           <% users.forEach(u => { %>
             <tr>
-              <td><%= u._id.replace(/</g,'&lt;').replace(/>/g,'&gt;') %></td>
+              <td><%= (u.id || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') %></td>
               <td><%= u.username.replace(/</g,'&lt;').replace(/>/g,'&gt;') %></td>
               <td><%= u.role.replace(/</g,'&lt;').replace(/>/g,'&gt;') %></td>
               <td class="d-flex gap-2">
-                <select class="form-select form-select-sm w-auto" onchange="changeRole('<%= u._id %>', this.value)">
+                <select class="form-select form-select-sm w-auto" onchange="changeRole('<%= u.id %>', this.value)">
                   <option value="user" <%= u.role === 'user' ? 'selected' : '' %>>Usuario</option>
                   <option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>Administrador</option>
                 </select>
-                <button class="btn btn-sm btn-danger" onclick="deleteUser('<%= u._id %>')">Eliminar</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteUser('<%= u.id %>')">Eliminar</button>
               </td>
             </tr>
           <% }) %>

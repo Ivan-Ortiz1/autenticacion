@@ -22,8 +22,8 @@
     <div class="card shadow-lg p-4 mx-auto" style="max-width: 600px;">
       <h1 class="text-center mb-4">Zona Protegida</h1>
 
-      <p><strong>Usuario:</strong> <%= user.username.replace(/</g,'&lt;').replace(/>/g,'&gt;') %> (ID: <%= user.id.replace(/</g,'&lt;').replace(/>/g,'&gt;') %>)</p>
-      <p><strong>Rol:</strong> <%= user.role.replace(/</g,'&lt;').replace(/>/g,'&gt;') %></p>
+      <p><strong>Usuario:</strong> <%= (user?.username || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') %> (ID: <%= (user?.id || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') %>)</p>
+      <p><strong>Rol:</strong> <%= (user?.role || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') %></p>
 
       <div class="d-grid gap-3 mt-4">
         <button id="refreshBtn" class="btn btn-primary">Refrescar Token</button>

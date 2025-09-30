@@ -1,39 +1,27 @@
-import DBLocal from 'db-local'
 import crypto from 'node:crypto'
 import bcrypt from 'bcryptjs'
-
+import db from './db.js'
 import { SALT_ROUNDS } from './config.js'
-
-const { Schema } = new DBLocal({ path: './db' })
-
-const User = Schema('User', {
-  _id: { type: String, required: true },
-  username: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, required: true, default: 'user' }
-})
 
 export class UserRepository {
   static async create({ username, password, role = 'user' }) {
     Validation.username(username)
     Validation.password(password)
 
-    const user = User.findOne({ username })
-    if (user) throw new Error('Usuario ya existente')
-
-    // Validar rol al crear usuario
     const validRoles = ['user', 'admin']
     if (!validRoles.includes(role)) throw new Error('Rol inválido')
+
+    // Verificar si ya existe el usuario
+    const existing = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
+    if (existing) throw new Error('Usuario ya existente')
 
     const id = crypto.randomUUID()
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
 
-    User.create({
-      _id: id,
-      username,
-      password: hashedPassword,
-      role
-    }).save()
+    db.prepare(`
+      INSERT INTO users (id, username, password, role)
+      VALUES (?, ?, ?, ?)
+    `).run(id, username, hashedPassword, role)
 
     return id
   }
@@ -42,40 +30,31 @@ export class UserRepository {
     Validation.username(username)
     Validation.password(password)
 
-    const user = User.findOne({ username })
+    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
     if (!user) throw new Error('El usuario no existe')
 
     const isValid = await bcrypt.compare(password, user.password)
     if (!isValid) throw new Error('Contraseña inválida')
 
     const { password: _, ...publicUser } = user
-
     return publicUser
   }
 
-  // Listar todos los usuarios
   static listAll() {
-    return User.find({})
+    return db.prepare('SELECT id, username, role FROM users').all()
   }
 
-  // Actualizar rol
   static async updateRole(id, role) {
-    // Validar rol permitido
     const validRoles = ['user', 'admin']
     if (!validRoles.includes(role)) throw new Error('Rol inválido')
 
-    const user = User.findOne({ _id: id })
-    if (!user) throw new Error('Usuario no encontrado')
-
-    user.role = role
-    user.save()
+    const result = db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id)
+    if (result.changes === 0) throw new Error('Usuario no encontrado')
   }
 
-  // Eliminar usuario
   static async delete(id) {
-    const user = User.findOne({ _id: id })
-    if (!user) throw new Error('Usuario no encontrado')
-    User.delete({ _id: id })
+    const result = db.prepare('DELETE FROM users WHERE id = ?').run(id)
+    if (result.changes === 0) throw new Error('Usuario no encontrado')
   }
 }
 

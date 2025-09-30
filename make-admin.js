@@ -2,7 +2,7 @@ import { UserRepository } from './user-repository.js'
 
 async function makeAdmin(username) {
   try {
-    // Buscamos el usuario por username
+    // Buscar usuario por username
     const users = UserRepository.listAll()
     const user = users.find(u => u.username === username)
     if (!user) {
@@ -10,8 +10,8 @@ async function makeAdmin(username) {
       return
     }
 
-    // Actualizamos el rol a 'admin'
-    await UserRepository.updateRole(user._id, 'admin')
+    // Actualizar rol a 'admin'
+    await UserRepository.updateRole(user.id, 'admin')
     console.log(`El usuario "${username}" ahora es administrador`)
   } catch (err) {
     console.error('Error:', err.message)
