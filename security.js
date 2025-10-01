@@ -11,7 +11,6 @@ export const loginRateLimiter = rateLimit({
   legacyHeaders: false
 })
 
-
 export const csrfProtection = csrf({
   cookie: {
     httpOnly: true,
@@ -19,7 +18,6 @@ export const csrfProtection = csrf({
     sameSite: 'strict'
   }
 })
-
 
 export function generateAccessToken(payload) {
   return jwt.sign(payload, SECRET_JWT_KEY, { expiresIn: '15m' })
@@ -29,7 +27,6 @@ export function generateRefreshToken(payload) {
   return jwt.sign(payload, REFRESH_SECRET, { expiresIn: '7d' })
 }
 
-
 export function verifyAccessToken(token) {
   return jwt.verify(token, SECRET_JWT_KEY)
 }
@@ -37,7 +34,6 @@ export function verifyAccessToken(token) {
 export function verifyRefreshToken(token) {
   return jwt.verify(token, REFRESH_SECRET)
 }
-
 
 export function authenticate(req, res, next) {
   const token = req.cookies.access_token
@@ -59,17 +55,12 @@ export function authenticate(req, res, next) {
   next()
 }
 
-
 export function authorize(allowedRoles = []) {
   return (req, res, next) => {
-    const user = req.session.user
-    if (!user) return res.status(403).send('Acceso denegado')
-
-    const userRole = (user.role || '').toLowerCase()
-    const rolesLower = allowedRoles.map(r => r.toLowerCase())
-
-    if (!rolesLower.includes(userRole)) return res.status(403).send('Acceso denegado')
-
-    next()
-  }
+    const user = req.session.user;
+    if (!user || !allowedRoles.map(r => r.toLowerCase()).includes((user.role || '').toLowerCase())) {
+      return res.render('acceso-denegado', { csrfToken: req.csrfToken() });
+    }
+    next();
+  };
 }

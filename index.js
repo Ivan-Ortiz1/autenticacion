@@ -10,6 +10,7 @@ import {
   csrfProtection,
   loginRateLimiter,
   authenticate,
+  authorize,
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken
@@ -121,7 +122,7 @@ app.post('/logout', csrfProtection, (req, res) => {
 })
 
 // Ruta protegida
-app.get('/protected', authenticate, csrfProtection, (req, res) => {
+app.get('/protected', authenticate, csrfProtection, authorize(['admin']), (req, res) => {
   const user = req.session.user
 
   if (!user) return res.redirect('/')
