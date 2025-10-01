@@ -38,11 +38,10 @@ export function verifyRefreshToken(token) {
 export function authenticate(req, res, next) {
   const token = req.cookies.access_token
 
-  if (!req.session) req.session = {} // aseguramos que req.session exista
+  if (!req.session) req.session = {} 
 
   if (!token) {
-    req.session.user = null // no autorizado, pero dejamos pasar
-    return next()
+    req.session.user = null 
   }
 
   try {

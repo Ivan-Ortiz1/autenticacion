@@ -66,14 +66,12 @@ app.get('/', csrfProtection, (req, res) => {
 
 // Login
 app.post('/login', loginRateLimiter, csrfProtection, async (req, res) => {
-  const { username, password } = req.body
+  const { email, password } = req.body
   try {
-    const user = await UserRepository.login({ username, password })
+    const user = await UserRepository.login({ email, password })
 
-    // Guardamos solo propiedades necesarias en la sesión
-    req.session.user = { id: user._id, username: user.username, role: user.role }
+    req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role }
 
-    // Generamos tokens
     const accessToken = generateAccessToken(req.session.user)
     const refreshToken = generateRefreshToken(req.session.user)
 
@@ -82,13 +80,13 @@ app.post('/login', loginRateLimiter, csrfProtection, async (req, res) => {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 1000 * 60 * 15 // 15 min
+        maxAge: 1000 * 60 * 15
       })
       .cookie('refresh_token', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 1000 * 60 * 60 * 24 * 7 // 7 días
+        maxAge: 1000 * 60 * 60 * 24 * 7
       })
       .send({ user })
   } catch (err) {
@@ -98,9 +96,9 @@ app.post('/login', loginRateLimiter, csrfProtection, async (req, res) => {
 
 // Registro
 app.post('/register', csrfProtection, async (req, res) => {
-  const { username, password } = req.body
+  const { username, email, password } = req.body
   try {
-    const id = await UserRepository.create({ username, password })
+    const id = await UserRepository.create({ username, email, password })
     res.send({ id })
   } catch (err) {
     res.status(400).send(err.message)

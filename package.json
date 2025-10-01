@@ -33,8 +33,5 @@
     "postcss": "^8.5.6",
     "standard": "17.1.2",
     "tailwindcss": "^4.1.13"
-  },
-  "eslintConfig": {
-    "extends": "standard"
   }
 }

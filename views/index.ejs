@@ -30,7 +30,7 @@
         <h4 class="mb-3">Iniciar sesión</h4>
         <form id="loginForm">
           <div class="mb-3">
-            <input type="text" id="loginUser" class="form-control" placeholder="Usuario" required>
+            <input type="email" id="loginEmail" class="form-control" placeholder="Correo" required>
           </div>
           <div class="mb-3">
             <input type="password" id="loginPass" class="form-control" placeholder="Contraseña" required>
@@ -45,6 +45,9 @@
         <form id="registerForm">
           <div class="mb-3">
             <input type="text" id="regUser" class="form-control" placeholder="Usuario" required>
+          </div>
+          <div class="mb-3">
+            <input type="email" id="regEmail" class="form-control" placeholder="Correo" required>
           </div>
           <div class="mb-3">
             <input type="password" id="regPass" class="form-control" placeholder="Contraseña" required>
@@ -80,7 +83,7 @@
     // LOGIN
     document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const username = document.getElementById('loginUser').value.trim();
+      const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPass').value;
 
       try {
@@ -90,7 +93,7 @@
             'Content-Type': 'application/json',
             'CSRF-Token': csrfToken
           },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ email, password })
         });
 
         if (res.ok) location.reload();
@@ -105,6 +108,7 @@
     document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const username = document.getElementById('regUser').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPass').value;
 
       try {
@@ -114,7 +118,7 @@
             'Content-Type': 'application/json',
             'CSRF-Token': csrfToken
           },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ username, email, password })
         });
 
         if (res.ok) {
