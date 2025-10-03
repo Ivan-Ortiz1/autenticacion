@@ -3,15 +3,15 @@ import rateLimit from 'express-rate-limit'
 import csrf from 'csurf'
 import { SECRET_JWT_KEY, REFRESH_SECRET, NODE_ENV } from './config.js'
 
-export const loginRateLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 min
+export const loginRateLimiter = rateLimit({ //ver 
+  windowMs: 15 * 60 * 1000, // 15 min
   max: 3,
   message: 'Demasiados intentos de login. Intenta más tarde.',
-  standardHeaders: true,
-  legacyHeaders: false
+  standardHeaders: true, //manda los headers modernos (RateLimit-*).
+  legacyHeaders: false //desactiva los headers viejos (X-RateLimit-*).
 })
-
-export const csrfProtection = csrf({
+//token csrf
+export const csrfProtection = csrf({ //ver
   cookie: {
     httpOnly: true,
     secure: NODE_ENV === 'production',
@@ -54,7 +54,7 @@ export function authenticate(req, res, next) {
   next()
 }
 
-export function authorize(allowedRoles = []) {
+export function authorize(allowedRoles = []) { // Ver .map
   return (req, res, next) => {
     const user = req.session.user;
     if (!user || !allowedRoles.map(r => r.toLowerCase()).includes((user.role || '').toLowerCase())) {

@@ -27,8 +27,8 @@ app.use(cookieParser())
 app.use(session({
   store: new (SQLiteStore(session))({ db: 'sessions.db', dir: './db' }),
   secret: SECRET_JWT_KEY,
-  resave: false,
-  saveUninitialized: false,
+  resave: false, //evita guardar sesiones sin cambios
+  saveUninitialized: false, //evita guardar sesiones vacías
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 día
     httpOnly: true,
@@ -108,7 +108,7 @@ app.post('/register', csrfProtection, async (req, res) => {
 // Logout
 // Agregado csrfProtection para que logout requiera token CSRF (el frontend ya lo envía)
 app.post('/logout', csrfProtection, (req, res) => {
-  req.session.destroy(err => {
+  req.session.destroy(err => { // ver destroy
     if (err) {
       console.error(err)
       return res.status(500).send('Error al cerrar sesión')

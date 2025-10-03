@@ -39,7 +39,7 @@ export class UserRepository {
     const isValid = await bcrypt.compare(password, user.password)
     if (!isValid) throw new Error('Contraseña inválida')
 
-    const { password: _, ...publicUser } = user
+    const { password: _, ...publicUser } = user //(spread operator) en este caso sirven para copiar todas las propiedades restantes del objeto user a un nuevo objeto (publicUser), excluyendo la contraseña.
     return publicUser
   }
 
