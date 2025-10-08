@@ -23,12 +23,12 @@ app.set('view engine', 'ejs')
 app.use(express.json())
 app.use(cookieParser())
 
-// Sesiones persistentes con SQLite
+// Sesiones persistentes con SQLite (modo cookie)
 app.use(session({
   store: new (SQLiteStore(session))({ db: 'sessions.db', dir: './db' }),
   secret: SECRET_JWT_KEY,
-  resave: false, //evita guardar sesiones sin cambios
-  saveUninitialized: false, //evita guardar sesiones vacías
+  resave: false,
+  saveUninitialized: false,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 día
     httpOnly: true,
@@ -36,20 +36,6 @@ app.use(session({
     sameSite: 'strict'
   }
 }))
-
-// Middleware: sincroniza JWT con sesión persistente
-app.use((req, res, next) => {
-  const token = req.cookies.access_token
-  if (!req.session.user && token) {
-    try {
-      const data = jwt.verify(token, SECRET_JWT_KEY)
-      req.session.user = { ...data } // sincronizamos session con token
-    } catch {
-      req.session.user = null
-    }
-  }
-  next()
-})
 
 // Rutas de admin
 app.use('/admin', adminRoutes)
@@ -60,16 +46,20 @@ app.get('/', csrfProtection, (req, res) => {
   const username = user ? user.username : null
   const role = user ? user.role : null
 
-  // Enviamos username, role y csrfToken para que la vista pueda renderizar condicionalmente
   res.render('index', { username, role, csrfToken: req.csrfToken() })
 })
 
-// Login
-app.post('/login', loginRateLimiter, csrfProtection, async (req, res) => {
+/**
+ * LOGIN CON SESIONES (persistentes con cookies)
+ * - Guarda usuario en req.session
+ * - Devuelve cookies de sesión + tokens para renovar acceso
+ */
+app.post('/login-cookie', loginRateLimiter, csrfProtection, async (req, res) => {
   const { email, password } = req.body
   try {
     const user = await UserRepository.login({ email, password })
 
+    // Guardamos al usuario en la sesión
     req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role }
 
     const accessToken = generateAccessToken(req.session.user)
@@ -88,7 +78,31 @@ app.post('/login', loginRateLimiter, csrfProtection, async (req, res) => {
         sameSite: 'strict',
         maxAge: 1000 * 60 * 60 * 24 * 7
       })
-      .send({ user })
+      .send({ user, mode: 'cookie-session' })
+  } catch (err) {
+    res.status(401).send(err.message)
+  }
+})
+
+/**
+ * LOGIN CON JWT PURO (stateless)
+ * - No usa sesiones ni cookies
+ * - Devuelve tokens en JSON
+ */
+app.post('/login-jwt', loginRateLimiter, async (req, res) => {
+  const { email, password } = req.body
+  try {
+    const user = await UserRepository.login({ email, password })
+
+    const accessToken = generateAccessToken({ id: user.id, username: user.username, email: user.email, role: user.role })
+    const refreshToken = generateRefreshToken({ id: user.id, username: user.username, email: user.email, role: user.role })
+
+    res.send({
+      user,
+      mode: 'jwt-stateless',
+      accessToken,
+      refreshToken
+    })
   } catch (err) {
     res.status(401).send(err.message)
   }
@@ -105,30 +119,43 @@ app.post('/register', csrfProtection, async (req, res) => {
   }
 })
 
-// Logout
-// Agregado csrfProtection para que logout requiera token CSRF (el frontend ya lo envía)
+// Logout (solo aplica a sesiones persistentes)
 app.post('/logout', csrfProtection, (req, res) => {
-  req.session.destroy(err => { // ver destroy
+  req.session.destroy(err => {
     if (err) {
       console.error(err)
       return res.status(500).send('Error al cerrar sesión')
     }
     res.clearCookie('access_token')
     res.clearCookie('refresh_token')
-    res.send({ message: 'Sesión cerrada' })
+    res.send({ message: 'Sesión cerrada (modo cookie)' })
   })
 })
 
-// Ruta protegida
-app.get('/protected', authenticate, csrfProtection, authorize(['admin']), (req, res) => {
+// Ruta protegida con sesiones persistentes
+app.get('/protected-cookie', authenticate, csrfProtection, authorize(['admin']), (req, res) => {
   const user = req.session.user
-
   if (!user) return res.redirect('/')
   res.render('protected', { user, csrfToken: req.csrfToken() })
 })
 
-// Refresh token
-// Agregado csrfProtection para que el refresh requiera token CSRF (frontend lo envía)
+// Ruta protegida con JWT puro (stateless)
+// Aquí no hay sesión, solo Authorization: Bearer <token>
+app.get('/protected-jwt', (req, res) => {
+  const authHeader = req.headers['authorization']
+  const token = authHeader && authHeader.split(' ')[1]
+
+  if (!token) return res.status(401).send('Token requerido')
+
+  try {
+    const user = jwt.verify(token, SECRET_JWT_KEY)
+    res.send({ message: 'Acceso concedido (modo JWT)', user })
+  } catch (err) {
+    res.status(403).send('Token inválido o expirado')
+  }
+})
+
+// Refresh token (modo cookie)
 app.post('/refresh', csrfProtection, (req, res) => {
   const refreshToken = req.cookies.refresh_token
   if (!refreshToken) return res.status(401).send('No hay refresh token')
@@ -145,6 +172,21 @@ app.post('/refresh', csrfProtection, (req, res) => {
     })
 
     res.send({ message: 'Token renovado' })
+  } catch (err) {
+    res.status(403).send('Refresh token inválido o expirado')
+  }
+})
+
+// Refresh token (modo JWT stateless)
+app.post('/refresh-jwt', (req, res) => {
+  const { refreshToken } = req.body
+  if (!refreshToken) return res.status(401).send('No hay refresh token')
+
+  try {
+    const userData = verifyRefreshToken(refreshToken)
+    const newAccessToken = generateAccessToken(userData)
+
+    res.send({ message: 'Token renovado (JWT)', accessToken: newAccessToken })
   } catch (err) {
     res.status(403).send('Refresh token inválido o expirado')
   }

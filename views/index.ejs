@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Inicio - Passport Challenge</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
@@ -19,10 +20,10 @@
     .form-control {
       background-color: #2b2b2b;
       border: 1px solid #444;
-      color: #fff; /* texto blanco */
+      color: #fff;
     }
     .form-control::placeholder {
-      color: #aaa; /* color claro para el placeholder */
+      color: #aaa;
     }
     .form-control:focus {
       background-color: #2b2b2b;
@@ -43,7 +44,7 @@
   <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-black shadow-sm">
     <div class="container">
-      <a class="navbar-brand fw-bold text-white" href="#">Passport Challenge</a>
+      <a class="navbar-brand fw-bold text-white" href="/">Passport Challenge</a>
       <% if (username) { %>
         <div class="d-flex">
           <button id="logoutBtn" class="btn btn-outline-light ms-3">Cerrar sesión</button>
@@ -65,29 +66,47 @@
             <!-- Login -->
             <div class="col-md-6 border-end border-secondary">
               <h5 class="mb-3 text-primary">Iniciar sesión</h5>
-              <form id="loginForm">
+              <form id="loginForm" novalidate>
                 <div class="mb-3">
-                  <input type="email" id="loginEmail" class="form-control" placeholder="Correo" required>
+                  <label class="form-label">Modo de sesión</label>
+                  <div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="authMode" id="modeCookie" value="cookie" checked>
+                      <label class="form-check-label" for="modeCookie">Cookies (persistente)</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="authMode" id="modeJwt" value="jwt">
+                      <label class="form-check-label" for="modeJwt">JWT (stateless)</label>
+                    </div>
+                  </div>
                 </div>
-                <div class="mb-3">
-                  <input type="password" id="loginPass" class="form-control" placeholder="Contraseña" required>
-                </div>
-                <button type="submit" class="btn btn-primary w-100">Entrar</button>
-              </form>
-            </div>
+                 <div class="mb-3">
+                   <label for="loginEmail" class="form-label visually-hidden">Correo electrónico</label>
+                   <input type="email" id="loginEmail" class="form-control" placeholder="Correo" required aria-label="Correo electrónico">
+                 </div>
+                 <div class="mb-3">
+                   <label for="loginPass" class="form-label visually-hidden">Contraseña</label>
+                   <input type="password" id="loginPass" class="form-control" placeholder="Contraseña" required aria-label="Contraseña">
+                 </div>
+                 <button type="submit" class="btn btn-primary w-100">Entrar</button>
+               </form>
+             </div>
 
             <!-- Registro -->
             <div class="col-md-6">
               <h5 class="mb-3 text-success">Registrarse</h5>
-              <form id="registerForm">
+              <form id="registerForm" novalidate>
                 <div class="mb-3">
-                  <input type="text" id="regUser" class="form-control" placeholder="Usuario" required>
+                  <label for="regUser" class="form-label visually-hidden">Nombre de usuario</label>
+                  <input type="text" id="regUser" class="form-control" placeholder="Usuario" required aria-label="Nombre de usuario">
                 </div>
                 <div class="mb-3">
-                  <input type="email" id="regEmail" class="form-control" placeholder="Correo" required>
+                  <label for="regEmail" class="form-label visually-hidden">Correo electrónico</label>
+                  <input type="email" id="regEmail" class="form-control" placeholder="Correo" required aria-label="Correo electrónico">
                 </div>
                 <div class="mb-3">
-                  <input type="password" id="regPass" class="form-control" placeholder="Contraseña" required>
+                  <label for="regPass" class="form-label visually-hidden">Contraseña</label>
+                  <input type="password" id="regPass" class="form-control" placeholder="Contraseña" required aria-label="Contraseña">
                 </div>
                 <button type="submit" class="btn btn-success w-100">Registrar</button>
               </form>
@@ -100,7 +119,6 @@
 
           <div class="d-grid gap-3">
             <button id="protectedBtn" class="btn btn-primary btn-lg">Zona protegida</button>
-
             <% if (role === 'admin') { %>
               <button id="adminBtn" class="btn btn-danger btn-lg">Panel de Administración</button>
             <% } %>
@@ -121,22 +139,50 @@
   <script>
     const csrfToken = '<%= csrfToken %>';
 
+    // Helper para mostrar mensajes claros
+    function showMessage(msg, isError = true) {
+      alert((isError ? '⚠️ ' : '✅ ') + msg);
+    }
+
     // LOGIN
     document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPass').value;
+      const mode = document.querySelector('input[name="authMode"]:checked').value; // 'cookie' | 'jwt'
+      const endpoint = mode === 'cookie' ? '/login-cookie' : '/login-jwt';
 
       try {
-        const res = await fetch('/login', {
+        const headers = { 'Content-Type': 'application/json' };
+        if (mode === 'cookie') headers['CSRF-Token'] = csrfToken; // el endpoint cookie requiere CSRF
+
+        const res = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+          headers,
           body: JSON.stringify({ email, password })
         });
-        if (res.ok) location.reload();
-        else alert(`Error en login: ${await res.text()}`);
-      } catch (err) {
-        alert('Error en la comunicación con el servidor');
+
+        if (!res.ok) {
+          showMessage(await res.text());
+          return;
+        }
+
+        // Modo cookie: el servidor guarda la sesión y necesitamos recargar para actualizar la UI
+        if (mode === 'cookie') {
+          location.reload();
+          return;
+        }
+
+        // Modo JWT: el servidor devuelve tokens en JSON; los guardamos en localStorage para uso del cliente
+        const data = await res.json();
+        if (data.accessToken) localStorage.setItem('accessToken', data.accessToken);
+        if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+        showMessage('Inicio con JWT exitoso (tokens guardados en localStorage)', false);
+        // Redirigir a inicio o a una vista cliente que consuma la API con Authorization header
+        window.location.href = '/';
+
+      } catch {
+        showMessage('Error en la comunicación con el servidor');
       }
     });
 
@@ -153,10 +199,10 @@
           headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
           body: JSON.stringify({ username, email, password })
         });
-        if (res.ok) alert('Usuario creado, ahora puedes iniciar sesión');
-        else alert(`Error en registro: ${await res.text()}`);
-      } catch (err) {
-        alert('Error en la comunicación con el servidor');
+        if (res.ok) showMessage('Usuario creado, ahora puedes iniciar sesión', false);
+        else showMessage(await res.text());
+      } catch {
+        showMessage('Error en la comunicación con el servidor');
       }
     });
 
@@ -165,9 +211,9 @@
       try {
         const res = await fetch('/logout', { method: 'POST', headers: { 'CSRF-Token': csrfToken } });
         if (res.ok) location.reload();
-        else alert('Error al cerrar sesión');
-      } catch (err) {
-        alert('Error en la comunicación con el servidor');
+        else showMessage('Error al cerrar sesión');
+      } catch {
+        showMessage('Error en la comunicación con el servidor');
       }
     });
 
