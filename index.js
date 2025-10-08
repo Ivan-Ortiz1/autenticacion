@@ -166,28 +166,6 @@ app.post('/logout', csrfProtection, (req, res) => {
   })
 })
 
-// Ruta protegida con sesiones persistentes
-app.get('/protected-cookie', authenticate, csrfProtection, authorize(['admin']), (req, res) => {
-  const user = req.session.user
-  if (!user) return res.redirect('/')
-  res.render('protected', { user, csrfToken: req.csrfToken() })
-})
-
-// Ruta protegida con JWT puro (stateless)
-// Aquí no hay sesión, solo Authorization: Bearer <token>
-app.get('/protected-jwt', (req, res) => {
-  const authHeader = req.headers['authorization']
-  const token = authHeader && authHeader.split(' ')[1]
-
-  if (!token) return res.status(401).send('Token requerido')
-
-  try {
-    const user = jwt.verify(token, SECRET_JWT_KEY)
-    res.send({ message: 'Acceso concedido (modo JWT)', user })
-  } catch (err) {
-    res.status(403).send('Token inválido o expirado')
-  }
-})
 
 // Refresh token (modo cookie)
 app.post('/refresh', csrfProtection, (req, res) => {
