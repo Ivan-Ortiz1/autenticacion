@@ -4,7 +4,7 @@ import csrf from 'csurf'
 import { SECRET_JWT_KEY, REFRESH_SECRET, NODE_ENV } from './config.js'
 
 export const loginRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 1 * 60 * 1000,
   max: 3,
   message: 'Demasiados intentos de login. Intenta más tarde.',
   standardHeaders: true,

@@ -13,7 +13,8 @@ import {
   authorize,
   generateAccessToken,
   generateRefreshToken,
-  verifyRefreshToken
+  verifyRefreshToken,
+  verifyAccessToken // <-- nuevo
 } from './security.js'
 
 const app = express()
@@ -40,8 +41,41 @@ app.use(session({
 // Rutas de admin
 app.use('/admin', adminRoutes)
 
-// Ruta raíz
-app.get('/', csrfProtection, (req, res) => {
+// Endpoint para que el cliente (tras login JWT) pida al servidor poner el token en cookie
+app.post('/set-jwt-cookie', express.json(), (req, res) => {
+  const { accessToken, refreshToken } = req.body
+  if (!accessToken) return res.status(400).send('accessToken requerido')
+
+  try {
+    const userData = verifyAccessToken(accessToken) // valida el token antes de setear
+    // Setear cookies httpOnly (servidor)
+    res.cookie('access_token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 1000 * 60 * 15
+    })
+    if (refreshToken) {
+      res.cookie('refresh_token', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 1000 * 60 * 60 * 24 * 7
+      })
+    }
+
+    // Opcional: inicializar session.user para que las plantillas se rendericen con usuario
+    if (!req.session) req.session = {}
+    req.session.user = { id: userData.id, username: userData.username, email: userData.email, role: userData.role }
+
+    return res.send({ message: 'Cookies seteadas' })
+  } catch (err) {
+    return res.status(403).send('Token inválido')
+  }
+})
+
+// Ruta raíz: primero ejecutar authenticate para poblar req.session.user si hay cookie JWT
+app.get('/', authenticate, csrfProtection, (req, res) => {
   const user = req.session.user || null
   const username = user ? user.username : null
   const role = user ? user.role : null
@@ -190,6 +224,14 @@ app.post('/refresh-jwt', (req, res) => {
   } catch (err) {
     res.status(403).send('Refresh token inválido o expirado')
   }
+})
+
+// Ruta unificada /protected — funciona tanto si el usuario viene por sesión (cookie) o por JWT convertido a cookie
+app.get('/protected', authenticate, csrfProtection, authorize(['admin']), (req, res) => {
+  const user = req.session.user
+  if (!user) return res.redirect('/') // no autenticado -> volver al inicio
+
+  res.render('protected', { user, csrfToken: req.csrfToken() })
 })
 
 // Servidor

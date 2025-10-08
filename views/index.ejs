@@ -60,7 +60,7 @@
 
         <% if (!username) { %>
           <h2 class="text-center mb-4 fw-bold text-light">Bienvenido</h2>
-          <p class="text-center text-muted mb-4">Accede a tu cuenta o regístrate</p>
+          <p class="navbar-brand fw-bold text-white">Accede a tu cuenta o regístrate</p>
 
           <div class="row">
             <!-- Login -->
@@ -115,7 +115,7 @@
 
         <% } else { %>
           <h2 class="text-center mb-4 fw-bold text-light">Hola, <%= username.replace(/</g,'&lt;').replace(/>/g,'&gt;') %></h2>
-          <p class="text-center text-muted mb-4">Has iniciado sesión correctamente</p>
+          <p class="navbar-brand fw-bold text-white">Has iniciado sesión correctamente</p>
 
           <div class="d-grid gap-3">
             <button id="protectedBtn" class="btn btn-primary btn-lg">Zona protegida</button>
@@ -175,11 +175,22 @@
 
         // Modo JWT: el servidor devuelve tokens en JSON; los guardamos en localStorage para uso del cliente
         const data = await res.json();
+        // guardado opcional en localStorage (puedes mantenerlo o no)
         if (data.accessToken) localStorage.setItem('accessToken', data.accessToken);
         if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
-        showMessage('Inicio con JWT exitoso (tokens guardados en localStorage)', false);
-        // Redirigir a inicio o a una vista cliente que consuma la API con Authorization header
-        window.location.href = '/';
+
+        // Informar al servidor para que ponga las cookies httpOnly y poder renderizar la página desde el servidor
+        try {
+          await fetch('/set-jwt-cookie', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken: data.accessToken, refreshToken: data.refreshToken })
+          });
+          // ahora sí podemos redirigir a / y el servidor verá la cookie y mostrará la sesión
+          window.location.href = '/';
+        } catch (err) {
+          showMessage('No se pudo establecer la cookie en el servidor');
+        }
 
       } catch {
         showMessage('Error en la comunicación con el servidor');
